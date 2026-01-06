@@ -1207,7 +1207,12 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from io import BytesIO
 
-BASE_DIR = r"C:\Users\91702\Documents\programming\app\data\sec_wise_futures_data"
+from pathlib import Path
+import os
+
+# Define the base directory relative to the current script file
+# Path(__file__).resolve().parent gets the directory containing the script being run
+BASE_DIR = Path(__file__).resolve().parent / "sec_wise_futures_data"
 
 st.set_page_config(layout="wide", page_title="Pro Quant Pair Studio")
 

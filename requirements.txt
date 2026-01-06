@@ -4,5 +4,3 @@ scipy
 openpyxl
 pandas
 numpy
-pathlib
-os

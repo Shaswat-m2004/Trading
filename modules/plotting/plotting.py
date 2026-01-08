@@ -8,80 +8,6 @@ from scipy import stats
 import numpy as np
 
 
-# def plot_pair_ratio(df, stock_a, stock_b, std_dev_val, start_date=None, end_date=None):
-#     """
-#     Returns: fig, plot_df (The filtered dataframe used for plotting)
-#     """
-#     # ===============================
-#     # DATE RANGE FILTERING
-#     # ===============================
-#     plot_df = df.copy()
-
-#     if start_date:
-#         plot_df = plot_df[plot_df.index >= pd.to_datetime(start_date)]
-
-#     if end_date:
-#         plot_df = plot_df[plot_df.index <= pd.to_datetime(end_date)]
-
-#     if plot_df.empty:
-#         raise ValueError("No data available in selected date range.")
-
-#     fig = go.Figure()
-
-#     # --- Upper Band ---
-#     fig.add_trace(go.Scatter(
-#         x=plot_df.index, y=plot_df['Upper_Band'],
-#         mode='lines',
-#         name=f'+{std_dev_val} Std Dev',
-#         line=dict(color='#00FF00', width=1),
-#         opacity=0.5, hoverinfo='skip'
-#     ))
-
-#     # --- Lower Band ---
-#     fig.add_trace(go.Scatter(
-#         x=plot_df.index, y=plot_df['Lower_Band'],
-#         mode='lines',
-#         name=f'-{std_dev_val} Std Dev',
-#         line=dict(color='#FF3333', width=1),
-#         fill='tonexty', fillcolor='rgba(255,255,255,0.05)',
-#         opacity=0.5, hoverinfo='skip'
-#     ))
-
-#     # --- Mean ---
-#     fig.add_trace(go.Scatter(
-#         x=plot_df.index, y=plot_df['Mean'],
-#         mode='lines', name='Mean (SMA)',
-#         line=dict(color='#FFD700', width=2),
-#         hovertemplate='%{y:.4f}'
-#     ))
-
-#     # --- Ratio ---
-#     fig.add_trace(go.Scatter(
-#         x=plot_df.index, y=plot_df['Ratio'],
-#         mode='lines', name=f'Ratio ({stock_a}/{stock_b})',
-#         line=dict(color="#EEF3F3", width=3),
-#         hovertemplate='%{y:.4f}'
-#     ))
-
-#     fig.update_layout(
-#         title=dict(text=f"Pair Trading Ratio: {stock_a} vs {stock_b}", font=dict(size=18, color="white")),
-#         xaxis_title="Date", yaxis_title="Price Ratio",
-#         template="plotly_dark", height=650, hovermode="x unified",
-#         hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=14, font_family="monospace"),
-#         legend=dict(
-#             orientation="h",
-#             yanchor="bottom", y=1.02,
-#             xanchor="right", x=1
-#         ),
-#         margin=dict(r=20)
-#         # margin=dict(r=150)
-#     )
-#     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
-#     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
-
-#     # RETURN BOTH FIG AND DATA
-#     return fig, plot_df
-
 def plot_pair_ratio(df, stock_a, stock_b, std_dev_val, start_date=None, end_date=None):
     """
     Returns: fig, plot_df
@@ -510,9 +436,7 @@ def plot_quarterly_step_chart(df):
     Expects a DataFrame with a DateTime Index and a column named 'Ratio'.
     Visualizes 3-Month Step Statistics (Mean, High, Low) with Trading Day counts.
     """
-    # 1. Prepare Data for 3-Month Blocks (Quarterly)
-    # We use 'QE' (Quarter End) to identify blocks
-    # transform() broadcasts the single quarterly value to ALL days in that quarter -> Creates Flat Line
+
     grouper = df.groupby(pd.Grouper(freq='QE'))
     
     df = df.copy() # Work on a copy to avoid SettingWithCopy warnings
@@ -521,9 +445,7 @@ def plot_quarterly_step_chart(df):
     df['Q_Min']   = grouper['Ratio'].transform('min')
     df['Q_Count'] = grouper['Ratio'].transform('count')
 
-    # 2. Get Annotation Data (One label per quarter)
-    # We take the last day of each quarter to retrieve the calculated stats for labeling
-    # filter where count > 0 to avoid empty quarters
+
     quarter_labels = df.groupby(pd.Grouper(freq='QE')).last().dropna(subset=['Ratio'])
 
     # 3. Build Plot
@@ -585,101 +507,93 @@ def plot_quarterly_step_chart(df):
 
     return fig
 
-# ==========================================
-# USAGE EXAMPLE (Plug this into your app)
-# ==========================================
-# Assuming 'ratio_series' is your calculated pair ratio (Pandas Series with DateTime Index)
-# df_chart = pd.DataFrame({'Ratio': ratio_series})
-# fig = plot_quarterly_step_chart(df_chart)
-# fig.show()
 
 
-# def plot_semiannual_weekly_step_chart(df):
-#     """
-#     1. Resamples data to Weekly frequency (Fridays).
-#     2. Calculates 6-Month Step Statistics (Mean, High, Low).
-#     3. Visualizes the result.
-#     """
-#     # --- 1. Resample to Weekly Data (Fridays) ---
-#     # This filters the daily noise and considers only the end-of-week value
-#     if 'Ratio' not in df.columns:
-#         return go.Figure()
 
-#     # Resample to Weekly ('W-FRI') taking the last value of the week
-#     df_weekly = df.resample('W-FRI').last().dropna()
+# import pandas as pd
+# import plotly.graph_objects as go
 
-#     # --- 2. Prepare Data for 6-Month Blocks ---
-#     # '6ME' = 6 Months End frequency
-#     grouper = df_weekly.groupby(pd.Grouper(freq='6ME'))
+def plot_semiannual_weekly_line(df):
+    """
+    1. Resamples Daily 'Ratio' to Weekly Data.
+    2. Groups Weeks into 6-Month Blocks (Semi-Annual).
+    3. Visualizes Weekly Close Line vs 6-Month Fixed Statistics.
+    """
     
-#     stats_df = df_weekly.copy()
+    # --- Step 1: Resample Daily to Weekly ---
+    # We use .ohlc() to grab the specific Friday Close ('close') for the line
+    weekly_df = df['Ratio'].resample('W').ohlc()
+    weekly_df.columns = ['W_Open', 'W_High', 'W_Low', 'W_Close']
+
+    # --- Step 2: Calculate 6-Month Statistics ---
+    # Group by 6 Months ('6ME' for modern pandas, or '6M' for older)
+    grouper = weekly_df.groupby(pd.Grouper(freq='6ME'))
     
-#     # Calculate stats based on the WEEKLY data points
-#     stats_df['Semi_Mean']  = grouper['Ratio'].transform('mean')
-#     stats_df['Semi_Max']   = grouper['Ratio'].transform('max')
-#     stats_df['Semi_Min']   = grouper['Ratio'].transform('min')
-#     stats_df['Semi_Count'] = grouper['Ratio'].transform('count')
+    # Statistics based on the Weekly Close
+    weekly_df['Semi_Mean']  = grouper['W_Close'].transform('mean')
+    weekly_df['Semi_Max']   = grouper['W_High'].transform('max') # Max of the weekly highs
+    weekly_df['Semi_Min']   = grouper['W_Low'].transform('min')  # Min of the weekly lows
+    weekly_df['Week_Count'] = grouper['W_Close'].transform('count')
 
-#     # Get Annotations (One label per 6-month block)
-#     block_labels = stats_df.groupby(pd.Grouper(freq='6ME')).last().dropna(subset=['Ratio'])
+    # Get labels for annotations
+    semiannual_labels = weekly_df.groupby(pd.Grouper(freq='6ME')).last().dropna(subset=['W_Close'])
 
-#     # --- 3. Build Plot ---
-#     fig = go.Figure()
+    # --- Step 3: Build Plot ---
+    fig = go.Figure()
 
-#     # A. Main Ratio Line (Weekly)
-#     fig.add_trace(go.Scatter(
-#         x=stats_df.index, y=stats_df['Ratio'],
-#         mode='lines+markers', # Added markers to visualize the weeks clearly
-#         name='Weekly Ratio',
-#         marker=dict(size=4, opacity=0.6),
-#         line=dict(color='white', width=1),
-#         opacity=0.8
-#     ))
+    # A. Main Line (Weekly Close) - Replacing Candles
+    fig.add_trace(go.Scatter(
+        x=weekly_df.index, 
+        y=weekly_df['W_Close'],
+        mode='lines', 
+        name='Weekly Ratio (Fri)',
+        line=dict(color='white', width=1),
+        opacity=0.8
+    ))
 
-#     # B. 6-Month High (Green Step)
-#     fig.add_trace(go.Scatter(
-#         x=stats_df.index, y=stats_df['Semi_Max'],
-#         mode='lines', name='6M High',
-#         line=dict(color='#00ff00', width=1.5)
-#     ))
+    # B. 6-Month High (Green Step)
+    fig.add_trace(go.Scatter(
+        x=weekly_df.index, y=weekly_df['Semi_Max'],
+        mode='lines', name='6M High',
+        line=dict(color='#00ff00', width=1.5)
+    ))
 
-#     # C. 6-Month Low (Red Step)
-#     fig.add_trace(go.Scatter(
-#         x=stats_df.index, y=stats_df['Semi_Min'],
-#         mode='lines', name='6M Low',
-#         line=dict(color='#ff0000', width=1.5)
-#     ))
+    # C. 6-Month Low (Red Step)
+    fig.add_trace(go.Scatter(
+        x=weekly_df.index, y=weekly_df['Semi_Min'],
+        mode='lines', name='6M Low',
+        line=dict(color='#ff0000', width=1.5)
+    ))
 
-#     # D. 6-Month Mean (Yellow Step)
-#     fig.add_trace(go.Scatter(
-#         x=stats_df.index, y=stats_df['Semi_Mean'],
-#         mode='lines', name='6M Mean',
-#         line=dict(color='yellow', width=2.5)
-#     ))
+    # D. 6-Month Mean (Yellow Step)
+    fig.add_trace(go.Scatter(
+        x=weekly_df.index, y=weekly_df['Semi_Mean'],
+        mode='lines', name='6M Mean',
+        line=dict(color='yellow', width=2.5)
+    ))
 
-#     # E. Add "Weeks Count" Annotations
-#     for date, row in block_labels.iterrows():
-#         # Place text roughly in the middle of the 6-month block (3 months back)
-#         mid_date = date - pd.DateOffset(months=3)
+    # E. Annotations (Week Counts)
+    for date, row in semiannual_labels.iterrows():
+        # Center text visually in the 6-month block (approx 13 weeks back)
+        mid_date = date - pd.DateOffset(weeks=13)
         
-#         fig.add_annotation(
-#             x=mid_date,
-#             y=row['Semi_Max'], 
-#             text=f"{int(row['Semi_Count'])} Weeks",
-#             showarrow=False,
-#             yshift=15,
-#             font=dict(color='cyan', size=10)
-#         )
+        fig.add_annotation(
+            x=mid_date,
+            y=row['Semi_Max'], 
+            text=f"{int(row['Week_Count'])} Weeks",
+            showarrow=False,
+            yshift=15,
+            font=dict(color='cyan', size=11, family="monospace")
+        )
 
-#     # --- 4. Styling ---
-#     fig.update_layout(
-#         title='Pair Ratio: 6-Month Step Statistics (Weekly Data)',
-#         yaxis_title='Ratio',
-#         template='plotly_dark',
-#         height=600,
-#         hovermode='x unified',
-#         legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
-#         margin=dict(l=40, r=40, t=60, b=40)
-#     )
+    # --- Step 4: Styling ---
+    fig.update_layout(
+        title='<b>Semi-Annual Breakdown:</b> Weekly Ratio Line vs 6-Month Stats',
+        template='plotly_dark',
+        height=600,
+        hovermode='x unified',
+        legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
+        margin=dict(l=40, r=40, t=60, b=40)
+    )
 
-#     return fig
+    return fig

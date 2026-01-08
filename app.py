@@ -1215,6 +1215,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent / "sec_wise_futures_data"
 
 st.set_page_config(layout="wide", page_title="Pro Quant Pair Studio")
+# st.set_page_config(layout="wide", page_title="Pro Quant Pair Studio)
 
 # 1. MODIFIED: Added lookback and std_mult arguments to signature
 def dataframe_to_formatted_excel(df, lookback, std_mult):
@@ -1343,6 +1344,7 @@ def render_chart_with_csv(fig, df_to_download, lookback, std_mult, filename_pref
 
 
 st.title("⚡ Pro Quant Pairs Studio")
+# st.title(f"{BASE_DIR}")
 
 # --- SIDEBAR ---
 st.sidebar.header("1. Select Pair")

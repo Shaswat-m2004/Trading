@@ -10,10 +10,12 @@ import io
 from datetime import datetime, timedelta
 
 # ================= CONFIGURATION =================
-# Pointing to your BEST data folder
-DATA_FOLDER = r'C:\Users\91702\Documents\programming\app\data\adjusted_futures_data_final'
-# File to store the active list (saved in the same folder as this script)
-LIST_FILE_PATH = "nse_fo_stocks.txt" 
+# Default to repository-relative data folder. You can override with env var TRADING_DATA_DIR.
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
+DATA_FOLDER = os.environ.get('TRADING_DATA_DIR', os.path.join(REPO_ROOT, 'adjusted_futures_data_final'))
+# Store the active list inside the modules folder to avoid polluting working directories
+LIST_FILE_PATH = os.path.join(CURRENT_DIR, "nse_fo_stocks.txt")
 # =================================================
 
 # Page Setup

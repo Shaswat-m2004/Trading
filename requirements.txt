@@ -4,3 +4,7 @@ scipy
 openpyxl
 pandas
 numpy
+requests
+tqdm
+selenium
+webdriver-manager

@@ -24,8 +24,8 @@ from set_proxy import harmonize_futures_safely
 BASE_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
 PROJECT_DIR = os.path.join(BASE_ROOT, "set")
 DATA_DIR = BASE_ROOT
-APP_DATA_DIR = os.path.join(BASE_ROOT, "Trading_Data_Transformation")
-
+# APP_DATA_DIR = os.path.join(BASE_ROOT, "Trading_Data_Transformation")
+# C:\Users\91702\Documents\programming\all_cash_stocks\Trading\sector_master_map.csv
 PATHS = {
     "PROJECT_ROOT": PROJECT_DIR,
     "RAW_PR": os.path.join(PROJECT_DIR, "raw", "pr"),
@@ -34,10 +34,10 @@ PATHS = {
     "CLEAN_CA": os.path.join(PROJECT_DIR, "clean"),
     "STOCK_WISE_PR": os.path.join(DATA_DIR, "stock_wise"),
     "STOCK_WISE_FO": os.path.join(DATA_DIR, "adjusted_futures_data_final"),
-    "SECTOR_MAP": os.path.join(APP_DATA_DIR, "step3_fo_to_fo_pair", "data", "sector", "sector_master_map.csv"),
+    "SECTOR_MAP": os.path.join(DATA_DIR,"sector_master_map.csv"),
     "SECTOR_OUTPUT": os.path.join(DATA_DIR, "sec_wise_futures_data"),
-    "REMAINING_CA": os.path.join(APP_DATA_DIR, "automation", "remaning_ca"),
-    "LOG_FILE": os.path.join(APP_DATA_DIR, "automation", "logs", "Futures_Skipped_CA_Log.csv"),
+    "REMAINING_CA": os.path.join(DATA_DIR, "Automation", "remaning_ca"),
+    "LOG_FILE": os.path.join(DATA_DIR, "Automation", "logs", "Futures_Skipped_CA_Log.csv"),
 }
 
 def remove_folder(path_to_remove, log_func=print):
@@ -82,7 +82,7 @@ def main(status_callback=None):
     cash_gap = (end_date - start_date_cash).days
     
     # Logic: If gap is 0 or 1, data is fresh enough
-    if cash_gap <= -1:
+    if cash_gap <= 0:
         msg = f"✅ Data is up to date! (Last Date: {last_cash_date.date()})"
         log(msg, is_success=True)
         return msg, False # False means "No update ran"
@@ -125,6 +125,7 @@ def main(status_callback=None):
         return err_msg, False
 
 if __name__ == "__main__":
-    main()
+    # main()
     # for k,p in PATHS.items():
     #     print(f"{k}: {p}")
+    print(f"Project Root: {BASE_ROOT}")

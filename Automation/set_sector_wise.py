@@ -82,5 +82,12 @@ def organize_stocks_by_sector(SECTOR_MAP_PATH,SOURCE_DIR,OUTPUT_DIR):
     print(f"Files placed in 'Unknown_Sector': {missing_sector_count}")
     print(f"Root Output Directory: {OUTPUT_DIR}")
 
-# if __name__ == "__main__":
-#     organize_stocks_by_sector()
+if __name__ == "__main__":
+    organize_stocks_by_sector(
+                              r"C:\Users\91702\Documents\programming\all_cash_stocks\Trading\sector_master_map.csv",
+                              r"C:\Users\91702\Documents\programming\all_cash_stocks\Trading\adjusted_futures_data_final",
+                              r"C:\Users\91702\Documents\programming\all_cash_stocks\Trading\sec_wise_futures_data"
+                              )
+    # C:\Users\91702\Documents\programming\all_cash_stocks\Trading\sec_wise_futures_data
+    # C:\Users\91702\Documents\programming\all_cash_stocks\Trading\sector_master_map.csv
+    # C:\Users\91702\Documents\programming\all_cash_stocks\Trading\adjusted_futures_data_final

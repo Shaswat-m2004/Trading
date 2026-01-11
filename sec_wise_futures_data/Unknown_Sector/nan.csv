@@ -1,4 +1,0 @@
-TIMESTAMP,INSTRUMENT,SYMBOL,EXP_DATE,OPEN_PRICE,HI_PRICE,LO_PRICE,CLOSE_PRICE,OPEN_INT*,TRD_VAL,TRD_QTY,NO_OF_CONT,NO_OF_TRADE
-2026-01-02,* - OPEN_INT as available in the trading system at the end of trading hours.,nan,nan,,,,,,,,,
-2026-01-02,* - OPEN_INT as available in the trading system at the end of trading hours.,nan,nan,,,,,,,,,
-2026-01-05,* - OPEN_INT as available in the trading system at the end of trading hours.,nan,nan,,,,,,,,,

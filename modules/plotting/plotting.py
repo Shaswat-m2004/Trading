@@ -102,6 +102,10 @@ def plot_pair_ratio(df, stock_a, stock_b, std_dev_val, start_date=None, end_date
         showline=False, spikedash='dash', spikecolor="grey", spikethickness=1
     )
 
+    filtered_df = plot_df[plot_df['TIMESTAMP_A'] > pd.to_datetime('2021-06-08')]
+    print(filtered_df)
+    # print(plot_df.head(10))
+
     return fig, plot_df
 
 
@@ -257,14 +261,13 @@ def plot_secondary_indicators(df, std_dev_val):
     fig.update_layout(
         title="RSI Momentum",
         template="plotly_dark",
-        height=350,  # Reduced height since it is now a single plot
+        height=350,
         hovermode="x unified",
         margin=dict(l=40, r=40, t=40, b=40),
         showlegend=False,
-        yaxis=dict(range=[0, 100]) # Fix Y-axis range for RSI
+        yaxis=dict(range=[0, 100]) 
     )
     
-    # RETURN BOTH FIG AND DATA
     return fig, df
 
 def plot_recent_trends(df, std_dev_mult):
@@ -360,240 +363,240 @@ def plot_advanced_signals(df, z_threshold, stop_loss_z):
 
 
 
-
 def plot_zscore_distribution(df):
-    """
-    Plots the Histogram of Z-Scores with a Bell Curve overlay.
-    Shows 'Where we are now' with a marker.
-    """
-    # Clean data (remove NaNs)
     z_data = df['Z_Score'].dropna()
-    
-    if z_data.empty:
-        return go.Figure()
+    if z_data.empty: return go.Figure()
 
-    current_z = z_data.iloc[-1]
-    mean_val = z_data.mean()
-    std_val = z_data.std()
-
-    # 1. Create the Histogram (The Real Body)
-    fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=z_data,
-        histnorm='probability density',
-        name='Historical Z-Scores',
-        marker_color='#333333',
-        opacity=0.6,
-        nbinsx=50
-    ))
-
-    # 2. Create the Bell Curve (The Ideal Shape) 💃
-    x_range = np.linspace(z_data.min(), z_data.max(), 100)
+    mean_val, std_val = z_data.mean(), z_data.std()
+    x_range = np.linspace(min(z_data.min(), -4), max(z_data.max(), 4), 500)
     pdf = stats.norm.pdf(x_range, mean_val, std_val)
+
+    fig = go.Figure()
+
+    # 1. Background Zones (Ye naya magic hai)
+    # Green Zone (Safe: -1 to 1)
+    fig.add_vrect(x0=-1, x1=1, fillcolor="green", opacity=0.1, layer="below", line_width=0, annotation_text="Safe", annotation_position="top left")
     
+    # Yellow Zone (Warning: 1 to 2 & -1 to -2)
+    fig.add_vrect(x0=1, x1=2, fillcolor="yellow", opacity=0.1, layer="below", line_width=0)
+    fig.add_vrect(x0=-2, x1=-1, fillcolor="yellow", opacity=0.1, layer="below", line_width=0)
+
+    # Red Zone (Danger: >2 & <-2)
+    fig.add_vrect(x0=2, x1=max(4, z_data.max()), fillcolor="red", opacity=0.1, layer="below", line_width=0, annotation_text="Danger", annotation_position="top right")
+    fig.add_vrect(x0=min(-4, z_data.min()), x1=-2, fillcolor="red", opacity=0.1, layer="below", line_width=0)
+
+    # 2. Main Histogram & Curve (Tumhara purana code)
+    fig.add_trace(go.Histogram(x=z_data, histnorm='probability density', name='Actual', marker_color='#333333', opacity=0.6))
+    fig.add_trace(go.Scatter(x=x_range, y=pdf, mode='lines', name='Normal Dist', line=dict(color='#BD00FF', width=3)))
+
+    # 3. Current Marker
+    current_z = z_data.iloc[-1]
     fig.add_trace(go.Scatter(
-        x=x_range, y=pdf,
+        x=[current_z], y=[stats.norm.pdf(current_z, mean_val, std_val)],
+        mode='markers+text', name='Current', text=[f"{current_z:.2f}σ"], textposition="top center",
+        marker=dict(size=14, color='#00FF00', symbol='diamond', line=dict(width=2, color='white'))
+    ))
+
+    fig.update_layout(title="Z-Score Regime Analysis", template="plotly_dark", height=450, showlegend=False)
+    return fig
+
+
+
+# modules/plotting.py
+
+def plot_quarterly_structure(df, stock_a, stock_b):
+    """
+    Plots the Quarterly Step Chart with Hi/Lo Bands and Session Counts.
+    """
+
+    plot_df = df.dropna(subset=['Q_Mean'])
+
+    if plot_df.empty:
+        return go.Figure(), plot_df
+
+    fig = go.Figure()
+
+    # --- Hi Band ---
+    fig.add_trace(go.Scatter(
+        x=plot_df.index,
+        y=plot_df['Q_Hi_Band'],
         mode='lines',
-        name='Normal Distribution',
-        line=dict(color='#BD00FF', width=3) # Purple line
+        name='High Band (3M)',
+        line=dict(color='#00FF80', width=2),
+        hovertemplate='Q High: %{y:.4f}<extra></extra>'
     ))
 
-    # 3. Mark the Current Position (Where we are tonight)
-    # We find the height of the curve at the current Z to place the marker perfectly
-    current_pdf = stats.norm.pdf(current_z, mean_val, std_val)
-    
+    # --- Lo Band ---
     fig.add_trace(go.Scatter(
-        x=[current_z], y=[current_pdf],
-        mode='markers+text',
-        name='Current Z-Score',
-        text=[f"Current: {current_z:.2f}"],
-        textposition="top center",
-        marker=dict(size=15, color='#00FF00', line=dict(width=2, color='white'))
+        x=plot_df.index,
+        y=plot_df['Q_Lo_Band'],
+        mode='lines',
+        name='Low Band (3M)',
+        line=dict(color='#FF4136', width=2),
+        hovertemplate='Q Low: %{y:.4f}<extra></extra>'
     ))
 
-    # 4. Add Threshold Lines (The Danger Zones)
-    fig.add_vline(x=2.0, line_dash="dot", line_color="#FF3333", annotation_text="+2σ")
-    fig.add_vline(x=-2.0, line_dash="dot", line_color="#00FF00", annotation_text="-2σ")
-
-    fig.update_layout(
-        title="Z-Score Distribution (Bell Curve Analysis)",
-        xaxis_title="Sigma (Standard Deviations)",
-        yaxis_title="Probability Density",
-        template="plotly_dark",
-        height=450,
-        showlegend=True,
-        bargap=0.1
-    )
-
-    return fig
-
-
-# import pandas as pd
-# import plotly.graph_objects as go
-
-def plot_quarterly_step_chart(df):
-    """
-    Expects a DataFrame with a DateTime Index and a column named 'Ratio'.
-    Visualizes 3-Month Step Statistics (Mean, High, Low) with Trading Day counts.
-    """
-
-    grouper = df.groupby(pd.Grouper(freq='QE'))
-    
-    df = df.copy() # Work on a copy to avoid SettingWithCopy warnings
-    df['Q_Mean']  = grouper['Ratio'].transform('mean')
-    df['Q_Max']   = grouper['Ratio'].transform('max')
-    df['Q_Min']   = grouper['Ratio'].transform('min')
-    df['Q_Count'] = grouper['Ratio'].transform('count')
-
-
-    quarter_labels = df.groupby(pd.Grouper(freq='QE')).last().dropna(subset=['Ratio'])
-
-    # 3. Build Plot
-    fig = go.Figure()
-
-    # --- A. Main Ratio Line (Dynamic) ---
+    # --- Mean ---
     fig.add_trace(go.Scatter(
-        x=df.index, y=df['Ratio'],
-        mode='lines', name='Price Ratio',
-        line=dict(color='white', width=1),
-        opacity=0.7
+        x=plot_df.index,
+        y=plot_df['Q_Mean'],
+        mode='lines',
+        name='Mean (3M)',
+        line=dict(color='#FFD700', width=2, dash='dash'),
+        hovertemplate='Q Mean: %{y:.4f}<extra></extra>'
     ))
 
-    # --- B. 3-Month High (Flat Green Step) ---
+    # --- Ratio Close ---
     fig.add_trace(go.Scatter(
-        x=df.index, y=df['Q_Max'],
-        mode='lines', name='3M High',
-        line=dict(color='#00ff00', width=1.5)
-    ))
-
-    # --- C. 3-Month Low (Flat Red Step) ---
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['Q_Min'],
-        mode='lines', name='3M Low',
-        line=dict(color='#ff0000', width=1.5)
-    ))
-
-    # --- D. 3-Month Mean (Flat Yellow Step) ---
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['Q_Mean'],
-        mode='lines', name='3M Mean',
-        line=dict(color='yellow', width=2.5)
-    ))
-
-    # --- E. Add Trading Days Annotations ---
-    # We place the text in the middle of the quarter visually
-    for date, row in quarter_labels.iterrows():
-        # Approximate the visual center of the quarter for the text
-        mid_date = date - pd.DateOffset(days=45) 
-        
-        fig.add_annotation(
-            x=mid_date,
-            y=row['Q_Max'], # Position text at the High line
-            text=f"{int(row['Q_Count'])} Days",
-            showarrow=False,
-            yshift=10,
-            font=dict(color='cyan', size=10)
-        )
-
-    # 4. Styling (Dark Theme)
-    fig.update_layout(
-        title='Pair Ratio: 3-Month Fixed Statistics (Step Chart)',
-        template='plotly_dark',
-        height=600,
-        hovermode='x unified',
-        legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
-        margin=dict(l=40, r=40, t=60, b=40)
-    )
-
-    return fig
-
-
-
-
-# import pandas as pd
-# import plotly.graph_objects as go
-
-def plot_semiannual_weekly_line(df):
-    """
-    1. Resamples Daily 'Ratio' to Weekly Data.
-    2. Groups Weeks into 6-Month Blocks (Semi-Annual).
-    3. Visualizes Weekly Close Line vs 6-Month Fixed Statistics.
-    """
-    
-    # --- Step 1: Resample Daily to Weekly ---
-    # We use .ohlc() to grab the specific Friday Close ('close') for the line
-    weekly_df = df['Ratio'].resample('W').ohlc()
-    weekly_df.columns = ['W_Open', 'W_High', 'W_Low', 'W_Close']
-
-    # --- Step 2: Calculate 6-Month Statistics ---
-    # Group by 6 Months ('6ME' for modern pandas, or '6M' for older)
-    grouper = weekly_df.groupby(pd.Grouper(freq='6ME'))
-    
-    # Statistics based on the Weekly Close
-    weekly_df['Semi_Mean']  = grouper['W_Close'].transform('mean')
-    weekly_df['Semi_Max']   = grouper['W_High'].transform('max') # Max of the weekly highs
-    weekly_df['Semi_Min']   = grouper['W_Low'].transform('min')  # Min of the weekly lows
-    weekly_df['Week_Count'] = grouper['W_Close'].transform('count')
-
-    # Get labels for annotations
-    semiannual_labels = weekly_df.groupby(pd.Grouper(freq='6ME')).last().dropna(subset=['W_Close'])
-
-    # --- Step 3: Build Plot ---
-    fig = go.Figure()
-
-    # A. Main Line (Weekly Close) - Replacing Candles
-    fig.add_trace(go.Scatter(
-        x=weekly_df.index, 
-        y=weekly_df['W_Close'],
-        mode='lines', 
-        name='Weekly Ratio (Fri)',
-        line=dict(color='white', width=1),
+        x=plot_df.index,
+        y=plot_df['Ratio_Close'],
+        mode='lines',
+        name=f'{stock_a}/{stock_b} Ratio',
+        line=dict(color='white', width=1.5),
         opacity=0.8
     ))
 
-    # B. 6-Month High (Green Step)
-    fig.add_trace(go.Scatter(
-        x=weekly_df.index, y=weekly_df['Semi_Max'],
-        mode='lines', name='6M High',
-        line=dict(color='#00ff00', width=1.5)
-    ))
+    # --- Session Count Annotations ---
+    for q_end, group in plot_df.groupby('Quarter_End'):
+        if group.empty:
+            continue
 
-    # C. 6-Month Low (Red Step)
-    fig.add_trace(go.Scatter(
-        x=weekly_df.index, y=weekly_df['Semi_Min'],
-        mode='lines', name='6M Low',
-        line=dict(color='#ff0000', width=1.5)
-    ))
+        mid_date = group.index[len(group) // 2]
 
-    # D. 6-Month Mean (Yellow Step)
-    fig.add_trace(go.Scatter(
-        x=weekly_df.index, y=weekly_df['Semi_Mean'],
-        mode='lines', name='6M Mean',
-        line=dict(color='yellow', width=2.5)
-    ))
+        sessions = int(group['Q_Sessions'].iloc[0])
+        q_hi = group['Q_Hi_Band'].iloc[0]
 
-    # E. Annotations (Week Counts)
-    for date, row in semiannual_labels.iterrows():
-        # Center text visually in the 6-month block (approx 13 weeks back)
-        mid_date = date - pd.DateOffset(weeks=13)
-        
         fig.add_annotation(
             x=mid_date,
-            y=row['Semi_Max'], 
-            text=f"{int(row['Week_Count'])} Weeks",
+            y=q_hi,
+            text=f"🗓️ {sessions} Days",
             showarrow=False,
-            yshift=15,
-            font=dict(color='cyan', size=11, family="monospace")
+            yshift=18,  # ⬆️ Push above green band
+            font=dict(
+                size=8,
+                color="#00FF80",   # Same neon green as band
+                family="Arial Black"
+            ),
+            bgcolor="rgba(0,0,0,0.6)",  # Contrast on dark theme
+            bordercolor="#00FF80",
+            borderwidth=1,
+            opacity=0.95
         )
 
-    # --- Step 4: Styling ---
+
     fig.update_layout(
-        title='<b>Semi-Annual Breakdown:</b> Weekly Ratio Line vs 6-Month Stats',
-        template='plotly_dark',
+        title=dict(
+            text="Quarterly Structural Bands (3-Month High/Low Logic)",
+            font=dict(size=18, color="white")
+        ),
+        xaxis_title="Date",
+        yaxis_title="Ratio Value",
+        template="plotly_dark",
         height=600,
-        hovermode='x unified',
-        legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
-        margin=dict(l=40, r=40, t=60, b=40)
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
 
-    return fig
+    return fig, plot_df
+
+def plot_semiannual_weekly_structure(weekly_df, stock_a, stock_b):
+    """
+    Weekly Ratio plotted with 6-Month Structural Bands and Week Counts.
+    """
+    plot_df = weekly_df.dropna(subset=['S_Mean'])
+    if plot_df.empty:
+        return go.Figure(), plot_df
+
+    fig = go.Figure()
+
+    # --- High Band ---
+    fig.add_trace(go.Scatter(
+        x=plot_df.index,
+        y=plot_df['S_Hi_Band'],
+        mode='lines',
+        name='High Band (6M)',
+        line=dict(color='#00FF80', width=2)
+    ))
+
+    # --- Low Band ---
+    fig.add_trace(go.Scatter(
+        x=plot_df.index,
+        y=plot_df['S_Lo_Band'],
+        mode='lines',
+        name='Low Band (6M)',
+        line=dict(color='#FF4136', width=2)
+    ))
+
+    # --- Mean ---
+    fig.add_trace(go.Scatter(
+        x=plot_df.index,
+        y=plot_df['S_Mean'],
+        mode='lines',
+        name='Mean (6M)',
+        line=dict(color='#FFD700', width=2, dash='dash')
+    ))
+
+    # --- Weekly Close Ratio ---
+    fig.add_trace(go.Scatter(
+        x=plot_df.index,
+        y=plot_df['W_Close'],
+        mode='lines',
+        name=f'{stock_a}/{stock_b} Weekly Ratio',
+        line=dict(color='white', width=1.5),
+        opacity=0.9
+    ))
+
+    # --- NEW: Week Count Annotations (Added Here) ---
+    # Hum Semi_End par group karenge taaki har 6 mahine ka block mile
+    for s_end, group in plot_df.groupby('Semi_End'):
+        if group.empty:
+            continue
+
+        # Annotation ko period ke beech mein dikhane ke liye midpoint date
+        mid_date = group.index[len(group) // 2]
+
+        # 'S_Weeks' column se count uthayenge (Make sure calculation module calculates S_Weeks)
+        if 'S_Weeks' in group.columns:
+            weeks = int(group['S_Weeks'].iloc[0])
+            s_hi = group['S_Hi_Band'].iloc[0]
+
+            fig.add_annotation(
+                x=mid_date,
+                y=s_hi,
+                text=f"🗓️ {weeks} Weeks",
+                showarrow=False,
+                yshift=18,  # Band ke thoda upar push karne ke liye
+                font=dict(
+                    size=8, 
+                    color="#00FF80",   # Neon Green to match High Band
+                    family="Arial Black"
+                ),
+                bgcolor="rgba(0,0,0,0.6)",  # Semi-transparent background
+                bordercolor="#00FF80",
+                borderwidth=1,
+                opacity=0.95
+            )
+
+    fig.update_layout(
+        title="Semi-Annual Structural Bands (Weekly OHLC Logic)",
+        xaxis_title="Date",
+        yaxis_title="Ratio Value",
+        template="plotly_dark",
+        height=600,
+        hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    return fig, plot_df
